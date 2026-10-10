@@ -115,7 +115,25 @@ export default function Checkout() {
       <div className="oki-fade-up w-full max-w-xl rounded-[2rem] bg-white p-6 shadow-xl sm:p-9">
         {/* header */}
         <div className="mb-6 flex items-center justify-between">
-          <Logo size="text-2xl" />
+          <div className="flex items-center gap-3">
+            {inv.merchant?.logo_url ? (
+              <img data-testid="checkout-merchant-logo" src={inv.merchant.logo_url} alt={inv.merchant?.name || "merchant"}
+                className="h-9 w-9 rounded-xl border border-slate-200 bg-white object-contain p-1" />
+            ) : inv.merchant?.name ? (
+              <div data-testid="checkout-merchant-initial" className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold text-white"
+                style={{ background: inv.merchant?.brand_color || "#0D5C46" }}>
+                {inv.merchant.name.charAt(0).toUpperCase()}
+              </div>
+            ) : null}
+            {inv.merchant?.name ? (
+              <div className="leading-tight">
+                <div data-testid="checkout-merchant-name" className="text-sm font-bold text-slate-900">{inv.merchant.name}</div>
+                <div className="flex items-center gap-1 text-[10px] font-medium text-slate-400">powered by <Logo size="text-[11px]" /></div>
+              </div>
+            ) : (
+              <Logo size="text-2xl" />
+            )}
+          </div>
           <div className="flex items-center gap-3 text-slate-400">
             <button className="rounded-full p-1.5 hover:bg-slate-100" title="Довідка"><HelpCircle className="h-5 w-5" /></button>
             <button onClick={() => setLang(lang === "uk" ? "en" : "uk")} data-testid="checkout-lang"
