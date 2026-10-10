@@ -1,53 +1,42 @@
 # FozPay — PRD / Project Memory
 
-## Original problem statement
-Скопіювати і розгорнути проєкт https://github.com/psymaks249-debug/ddsfrwef, написати інструкцію
-для публікації на Hostinger, і зробити так, щоб доступ до сервера/БД НЕ був критичним для
-гарячого гаманця — зашифрувати сід-фразу. Ключі: ALCHEMY_KEY, TRONGRID_KEY, ONEINCH_KEY.
+## Original problem statement (this session)
+Clone the GitHub project maksymhumfk-commits/maks0707 into /app and implement:
+1. Exchange: add network selection + show balances per network.
+2. Payment requests: date search + pagination (not everything on one page).
+3. Registration enabled, but every new client (email OR Google) must be approved by admin before cabinet access.
+4. Admin can manually edit each client's balance per currency.
+5. Fix Arbitrum deposit detection.
+6. Hot wallet must show ALL tokens on balance, not only catalog ones.
+7. Fund recovery: show all tokens, organized, search by single address + keep scan-all.
+Plus design asks: Heleket-style two-panel login, checkout redesign with timers, light animated landing, merchant logo upload, full UK/EN localization.
+Keys: ALCHEMY_KEY, TRONGRID_KEY, ONEINCH_KEY.
 
 ## Architecture
-- Backend: FastAPI (Python), MongoDB (motor), HD-wallet (bip-utils), web3/1inch swaps, JWT + Google session auth.
-- Frontend: React (CRACO), Tailwind, admin + merchant cabinet.
-- Hot wallet = HD EVM address at index 0; per-user deposit addresses derived per index; deposits swept to hot wallet.
+- Backend: FastAPI + MongoDB (motor), HD wallet (bip-utils), web3 + 1inch swaps, JWT + Emergent Google session auth, encrypted seed in DB (Fernet, key in .env).
+- Frontend: React (CRACO) + Tailwind + shadcn, emerald "FozPay" light theme, UK/EN i18n.
+- Hot wallet = HD EVM index 0; per-user deposit addresses derived per index; deposits swept to hot wallet.
 
-## Seed-phrase security (this session)
-- Seed is stored ENCRYPTED in MongoDB (`system/_id=wallet`, field `mnemonic_enc`, Fernet/AES).
-- Decryption key `MNEMONIC_ENC_KEY` lives ONLY in `/app/backend/.env` → a DB dump alone cannot reveal the seed.
-- `WALLET_MNEMONIC` intentionally NOT set in .env (DB is source of truth).
-- New backend endpoints (admin only):
-  - `GET /api/admin/hot-wallet/seed-status` — shows configured/auto_generated/env_override/encrypted_at_rest + addresses; never returns the seed.
-  - `POST /api/admin/hot-wallet/set-mnemonic` — validates BIP-39, encrypts, stores in DB, reloads seed, returns new addresses (optional 2FA).
-- New frontend: Settings → Гарячий гаманець → "Безпека сід-фрази" card to enter/replace the seed securely.
-- `hd_wallet.is_valid_mnemonic()` added for BIP-39 validation.
-
-## Config (preview env)
-- backend/.env: MONGO_URL, DB_NAME, JWT_SECRET, MNEMONIC_ENC_KEY, ADMIN_EMAIL, ADMIN_PASSWORD, FRONTEND_URL, ALCHEMY_KEY, TRONGRID_KEY, ONEINCH_KEY.
+## Config (preview env, backend/.env)
+- MONGO_URL, DB_NAME, JWT_SECRET, MNEMONIC_ENC_KEY, ADMIN_EMAIL, ADMIN_PASSWORD, FRONTEND_URL, ALCHEMY_KEY, TRONGRID_KEY, ONEINCH_KEY.
 - Admin: psymaks249@gmail.com / FozPay2025Admin!
+- NOTE: On this Alchemy app, Arbitrum + BSC mainnet are ENABLED; Ethereum + Polygon mainnet are DISABLED (dashboard setting on user side) — ETH/Polygon scans return empty by design.
 
-## Deployment
-- `/app/README-HOSTINGER.md` — full Ukrainian VPS guide for domain **fozpay.online** (Nginx + HTTPS + systemd + MongoDB), with the encrypted-seed workflow (seed entered in admin UI after deploy, not in .env).
+## Implemented (2026-10-10)
+- Client approval flow: new email/Google users get status="pending"; core.get_active_user() blocks all cabinet endpoints (403 PENDING) until admin activates. Admin-created users and admin are "active". Frontend PendingScreen gate in App.js.
+- Admin user mgmt (server.py): PUT /api/admin/users/{uid}/status (activate/suspend), PUT /api/admin/users/{uid}/balance (set absolute per-currency balance, records admin_adjust tx). Settings UsersTab: status badge, Activate/Suspend, per-currency balance editor.
+- Exchange network selection: ExchangeIn gains from_network/to_network; _best_swap_chain honors preferred chain. Wallet swap tab: from/to network selects + "balance by networks" panel.
+- Payment requests (Requests.js): invoices + payouts each have search, period filter (all/today/7d/30d/custom), date column, and 20/page pagination.
+- Arbitrum: verified Alchemy arb-mainnet RPC + getTokenBalances work with the provided key.
+- Hot wallet + recovery show ALL tokens: recovery.scan_evm_all() via alchemy_getTokenBalances + token metadata (unknown tokens flagged). hot_wallet_balances uses it. Recovery page: address search + scan-all, grouped by network.
+- Design: two-panel Heleket-style Login with promo panel; Checkout redesign (currency+network select, "best choice" badge, rate-valid ring countdown, time-left-to-pay countdown); light landing with entrance + hover animations; merchant logo upload (base64 data URL in merchant.logo_url).
+- i18n: new keys added for UK+EN across Login, Checkout, Requests, Recovery, Wallet swap, PendingScreen, promo panel, merchant logo.
+- Bugfix: POST /api/invoices with a currencies[] entry missing "network" now returns 400 instead of 500.
 
-## Status (2026-10-03)
-- Project cloned into /app, deps installed, backend + frontend running.
-- Seed encryption feature implemented & tested: 100% backend (8/8), 100% frontend.
-- Hot-wallet seed currently auto-generated (encrypted) — user to replace with own seed via admin UI.
+## Testing
+- iteration_7.json: 13/13 backend + all critical frontend criteria pass. No critical issues.
 
 ## Backlog / Next
-- Audit log for set-mnemonic (admin id + timestamp).
-- Optional: split server.py routers into modules (maintainability).
-- Secondary badge "Користувацька сід-фраза" after user sets seed (cosmetic).
-
-## Bug fix (2026-10-03): 2FA enable returned 500
-- Root cause: /api/security/2fa/setup generated QR via qrcode.make().save(PNG) which needs Pillow; Pillow not installed on fresh VPS (qrcode lists it only as optional extra).
-- Fix: _generate_qr_data_url() now PNG-via-Pillow with pure-Python SVG fallback; requirements.txt pins qrcode[pil]>=7.4.2.
-- Verified by testing agent (iteration_5.json): backend 4/4, frontend 100%, no 500 at setup/enable/disable.
-- Server remediation: `pip install pillow && systemctl restart fozpay-api`.
-
-## Iteration (2026-10-03): Payout filters + Light redesign + mobile
-- Requests page → "Заявки на виведення (API)": added search (wallet/hash/order/id), period filter (all/today/7d/30d/custom dates), results counter, and a Дата column. Client-side filter over /payouts (created_ts seconds). testids: payout-search, payout-period, payout-date-from/to, payout-reset, payout-count.
-- Full visual redesign: LIGHT emerald theme (heleket-style) replacing violet/fuchsia AI look. Fonts: Clash Display (headings), Plus Jakarta Sans (body), JetBrains Mono. New index.css global theme + btn-foz/foz-grad-text helpers; blue-600 CTA remapped to brand emerald. Recolored Layout, Login, Dashboard (balance card + chart #10B981), Settings.
-- Landing rebuilt light (hero + feature chips, advantages, deposit/exchange/send, stats, coins grid, 2-step onboarding, FAQ, CTA, footer). Removed AI tagline "Крипто-еквайринг нового покоління • Без KYC для транзиту"; new headline "Прийом платежів у криптовалюті для вашого бізнесу".
-- Mobile: sidebar backdrop (sidebar-backdrop) + scrollable sidebar; responsive filter bar.
-- Page title set to "FozPay — прийом криптоплатежів".
-- Verified by testing agent iteration_6.json: frontend 100%, no console errors.
-- To apply on fozpay.online: on the server `cd /opt/fozpay && git pull && cd frontend && yarn install && yarn build && systemctl reload nginx` (after pushing these changes to the GitHub repo).
+- Deep-localize admin-only Settings tabs (Platform/Networks) fully to EN.
+- Optional: move merchant logo to object storage if large images needed (currently base64, 512KB cap).
+- Show merchant logo on the checkout header.

@@ -12,6 +12,7 @@ import { Logo } from "@/components/Layout";
 import { CoinIcon } from "@/components/common";
 
 function PromoPanel() {
+  const { t } = useLang();
   const rows = [
     { iso: "BTC", change: "+2.8%", up: true },
     { iso: "TRX", change: "+1.1%", up: true },
@@ -25,10 +26,10 @@ function PromoPanel() {
       <div className="relative flex w-full flex-col justify-between">
         <div>
           <h2 className="max-w-sm text-3xl font-extrabold leading-tight text-white font-display">
-            Статистика ваших балансів
+            {t("promo_title")}
           </h2>
           <p className="mt-3 max-w-sm text-sm text-emerald-100/80">
-            Прийом, обмін і виведення криптовалюти в одному кабінеті. Приєднуйтесь до спільноти FozPay вже сьогодні!
+            {t("promo_sub")}
           </p>
         </div>
 

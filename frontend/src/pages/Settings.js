@@ -33,7 +33,7 @@ export default function Settings() {
     try {
       const { data } = await api.put("/merchant", {
         name: m.name, home_url: m.home_url, result_url: m.result_url,
-        brand_color: m.brand_color, description: m.description,
+        brand_color: m.brand_color, logo_url: m.logo_url, description: m.description,
         auto_swap: !!m.auto_swap, auto_swap_to: m.auto_swap_to || "USDT",
         auto_convert: m.auto_convert !== false,
         fees: m.fees || {}, allowed_ips: m.allowed_ips || [],
@@ -152,6 +152,36 @@ export default function Settings() {
                       {m.brand_color === c && <Check className="h-4 w-4 text-white" />}
                     </button>
                   ))}
+                </div>
+                <div className="mt-6">
+                  <Label>{t("logo")}</Label>
+                  <div className="mt-2 flex items-center gap-3">
+                    {m.logo_url ? (
+                      <img src={m.logo_url} alt="logo" data-testid="merchant-logo-preview"
+                        className="h-14 w-14 rounded-xl border border-slate-200 bg-white object-contain p-1" />
+                    ) : (
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-dashed border-slate-300 text-xs text-slate-300">—</div>
+                    )}
+                    <div className="flex flex-col gap-1">
+                      <label className="w-max cursor-pointer rounded-full bg-[#0D5C46] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#083C2E]">
+                        {t("upload_logo")}
+                        <input data-testid="merchant-logo-input" type="file" accept="image/*" className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files && e.target.files[0];
+                            if (!f) return;
+                            if (f.size > 512 * 1024) { toast.error("Файл завеликий (макс 512 КБ)"); return; }
+                            const r = new FileReader();
+                            r.onload = () => setM((prev) => ({ ...prev, logo_url: r.result }));
+                            r.readAsDataURL(f);
+                          }} />
+                      </label>
+                      {m.logo_url && (
+                        <button type="button" data-testid="merchant-logo-remove" onClick={() => setM({ ...m, logo_url: "" })}
+                          className="w-max text-xs text-rose-500 hover:underline">{t("remove")}</button>
+                      )}
+                      <span className="text-[11px] text-slate-400">{t("logo_hint")}</span>
+                    </div>
+                  </div>
                 </div>
                 <div className="mt-6"><Label>{t("description")}</Label>
                   <Textarea data-testid="merchant-desc" value={m.description || ""} onChange={(e) => setM({ ...m, description: e.target.value })} className="rounded-xl mt-1" rows={4} placeholder="Зробіть назву вашого бізнесу зрозумілою для клієнтів" /></div>

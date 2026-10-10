@@ -880,7 +880,12 @@ async def _create_invoice(user, merchant, data: dict) -> dict:
         filtered = []
         for row in curs:
             iso = row.get("iso", "").upper()
-            nid = int(row.get("network"))
+            if row.get("network") is None:
+                continue
+            try:
+                nid = int(row.get("network"))
+            except (TypeError, ValueError):
+                continue
             if iso in CURRENCIES and nid in CURRENCIES[iso]["networks"] and enabled_map.get(str(nid), True):
                 filtered.append({"iso": iso, "network": nid})
         curs = filtered

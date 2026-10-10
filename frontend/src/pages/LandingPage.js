@@ -197,14 +197,14 @@ export default function LandingPage() {
         <div className="relative mx-auto max-w-7xl px-5 pt-16 pb-14 sm:px-8 sm:pt-24">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-[#0D5C46]">
+              <div className="oki-fade-up inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-[#0D5C46]">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" /> {tr.hero_chip}
               </div>
-              <h1 className="mt-6 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-slate-900 sm:text-5xl lg:text-[3.4rem]">
+              <h1 className="oki-fade-up mt-6 font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-slate-900 sm:text-5xl lg:text-[3.4rem]" style={{ animationDelay: "0.08s" }}>
                 {tr.hero_h1}
               </h1>
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-600">{tr.hero_sub}</p>
-              <div className="mt-8 flex flex-wrap gap-3">
+              <p className="oki-fade-up mt-5 max-w-xl text-base leading-relaxed text-slate-600" style={{ animationDelay: "0.16s" }}>{tr.hero_sub}</p>
+              <div className="oki-fade-up mt-8 flex flex-wrap gap-3" style={{ animationDelay: "0.24s" }}>
                 <button data-testid="hero-cta-start" onClick={go} className="btn-foz inline-flex items-center gap-2 px-6 py-3 text-sm">
                   {tr.hero_cta1} <ArrowRight className="h-4 w-4" />
                 </button>
@@ -216,7 +216,7 @@ export default function LandingPage() {
             </div>
 
             {/* light checkout preview card */}
-            <div className="relative">
+            <div className="relative foz-float">
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_24px_60px_-20px_rgba(13,92,70,0.25)]">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                   <div className="flex items-center gap-2.5">
@@ -249,7 +249,7 @@ export default function LandingPage() {
           {/* feature chips row */}
           <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {tr.chips.map(([t, d, Icon], i) => (
-              <div key={i} data-testid={`chip-${i}`} className="rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-emerald-300">
+              <div key={i} data-testid={`chip-${i}`} className="oki-fade-up rounded-2xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:-translate-y-1 hover:border-emerald-300 hover:shadow-[0_18px_40px_-24px_rgba(13,92,70,0.4)]" style={{ animationDelay: `${0.3 + i * 0.08}s` }}>
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-[#0D5C46]"><Icon className="h-5 w-5" /></div>
                 <div className="mt-3 text-sm font-bold text-slate-900">{t}</div>
                 <div className="mt-1 text-xs leading-relaxed text-slate-500">{d}</div>
@@ -264,7 +264,7 @@ export default function LandingPage() {
         <SectionHead title={tr.adv_title} sub={tr.adv_sub} />
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {tr.adv.map(([t, d, Icon], i) => (
-            <div key={i} data-testid={`feature-${t}`} className="group rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-200 hover:border-emerald-300 hover:shadow-[0_18px_40px_-24px_rgba(13,92,70,0.4)]">
+            <div key={i} data-testid={`feature-${t}`} className="group rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-200 hover:-translate-y-1 hover:border-emerald-300 hover:shadow-[0_18px_40px_-24px_rgba(13,92,70,0.4)]">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-[#0D5C46] transition-colors group-hover:bg-[#0D5C46] group-hover:text-white"><Icon className="h-5 w-5" /></div>
               <div className="mt-4 font-display text-lg font-bold text-slate-900">{t}</div>
               <div className="mt-1.5 text-sm leading-relaxed text-slate-500">{d}</div>

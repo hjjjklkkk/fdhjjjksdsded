@@ -58,6 +58,9 @@ const dict = {
     by_address: "по адресі", assets_n: "актив(и)", unknown_token: "невідомий токен",
     net_balances: "Баланс по мережах", no_networks: "Немає доступних мереж",
     gateway_tagline: "Прийом · Обмін · Вивід криптовалют через гарячий гаманець.",
+    promo_title: "Статистика ваших балансів",
+    promo_sub: "Прийом, обмін і виведення криптовалюти в одному кабінеті. Приєднуйтесь до спільноти FozPay вже сьогодні!",
+    logo: "Логотип", upload_logo: "Завантажити логотип", logo_hint: "PNG/JPG/SVG до 512 КБ", remove: "Прибрати",
   },
   en: {
     login: "Login", register: "Sign up", email: "Email", password: "Password", name: "Name",
@@ -116,6 +119,9 @@ const dict = {
     by_address: "by address", assets_n: "asset(s)", unknown_token: "unknown token",
     net_balances: "Balance by networks", no_networks: "No available networks",
     gateway_tagline: "Accept · Swap · Payout crypto via a hot wallet.",
+    promo_title: "Statistics of your balances",
+    promo_sub: "Accept, swap and pay out crypto in one dashboard. Join the FozPay community today!",
+    logo: "Logo", upload_logo: "Upload logo", logo_hint: "PNG/JPG/SVG up to 512 KB", remove: "Remove",
   },
 };
 

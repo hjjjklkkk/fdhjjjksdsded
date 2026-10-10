@@ -1,0 +1,53 @@
+{
+  "summary": "Iteration 7: tested pending registration gating, admin activate/suspend, admin manual per-currency balance edit, admin-only guards, hot-wallet shape, recovery scan + address filter, exchange graceful 400, plus frontend two-panel login + language toggle + /requests testids + Settings Users tab testids + /checkout testids with both countdowns. 13/13 backend tests pass. All critical frontend criteria verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/invoices", "issue": "When a currencies[] entry omits 'network' the handler raises 500 (TypeError: int(None)) at server.py:883 instead of returning 400 with a clear message. Low prio – frontend always sends network, but should validate the field."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_criteria": [
+    "Admin login (psymaks249@gmail.com) returns token + role=admin",
+    "POST /api/auth/register returns pending=true and user.status=pending",
+    "Pending user GET /api/wallet -> 403",
+    "GET /api/admin/users returns each user with 'status' and 'balances' array",
+    "PUT /api/admin/users/{uid}/status {active} activates user; afterwards GET /api/wallet -> 200",
+    "PUT /api/admin/users/{uid}/balance {USDT,500} persists; the user's GET /api/wallet shows USDT=500",
+    "Non-admin GET /api/admin/users -> 403; non-admin GET /api/admin/hot-wallet -> 403",
+    "GET /api/admin/hot-wallet returns {evm_address, tron_address, balances[], total_usd}",
+    "GET /api/recovery/scan works for admin and ?address=<x> filters (scanned.evm=0 for unused address, no 500)",
+    "POST /api/wallet/exchange with from_network/to_network returns 400 (not 500) when liquidity path unavailable",
+    "FRONTEND /login: two-panel layout, data-testids login-email/password/submit/lang present, lang toggle UK↔EN flips 'Увійти' -> 'Sign in'",
+    "FRONTEND /requests: invoice-search, invoice-period, payout-search present. invoice-pager/payout-pager not rendered when result set <= 1 page (acceptable conditional UI)",
+    "FRONTEND /settings Користувачі tab: user-suspend-<uid>, bal-iso-<uid>, bal-amount-<uid>, bal-save-<uid>, user-status-<uid> all present; user-activate-<uid> absent only because no pending user existed (test cleanup)",
+    "FRONTEND /checkout/{id}: checkout-currency, checkout-network, checkout-pay-btn, checkout-expiry all present; rate countdown (01:56) and time-left-to-pay countdown (55:59) both animate"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7_pending_admin.py",
+    "/app/test_reports/pytest/iter7.xml"
+  ],
+  "action_items": [
+    "(minor) In _create_invoice (server.py ~line 883) coerce missing/None 'network' to a 400 with a clear 'network required' message instead of letting int(None) raise 500."
+  ],
+  "critical_code_review_comments": [
+    "Pending gating correctly implemented via get_active_user() checking status=='active'.",
+    "admin_set_balance uses upsert + records an admin_adjust transaction with delta – good audit trail.",
+    "recovery_scan correctly accepts optional ?address and filters addresses pre-scan – no 500 paths observed.",
+    "exchange() returns 400 (not 500) when no on-chain route; good.",
+    "_create_invoice does not validate currencies[].network – should Pydantic-validate the sub-shape."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration7_pending_admin.py (new)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% of required criteria"},
+  "test_credentials": "Admin: psymaks249@gmail.com / FozPay2025Admin! (verified). Pre-activated: client1@test.com / test1234. Fresh pending users created by registration test and cleaned up at end.",
+  "seed_data_creation": "Each run creates a temp pending user test_pending_<rand>@test.com then deletes it in test_zz_cleanup_pending_user.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 14 review criteria pass. One minor backend hardening left (invoice create 500 when network omitted). Pytest file lives at /app/backend/tests/test_iteration7_pending_admin.py and is self-contained; run with `REACT_APP_BACKEND_URL=... pytest -n 0 backend/tests/test_iteration7_pending_admin.py`."
+}
