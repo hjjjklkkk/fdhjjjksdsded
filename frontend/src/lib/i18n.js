@@ -61,6 +61,8 @@ const dict = {
     promo_title: "Статистика ваших балансів",
     promo_sub: "Прийом, обмін і виведення криптовалюти в одному кабінеті. Приєднуйтесь до спільноти FozPay вже сьогодні!",
     logo: "Логотип", upload_logo: "Завантажити логотип", logo_hint: "PNG/JPG/SVG до 512 КБ", remove: "Прибрати",
+    partial_title: "Отримано часткову оплату", partial_received: "Отримано", partial_remaining: "Залишок до сплати",
+    partial_wait: "Доплатіть залишок на ту саму адресу — щойно сума надійде повністю, платіж підтвердиться автоматично.",
   },
   en: {
     login: "Login", register: "Sign up", email: "Email", password: "Password", name: "Name",
@@ -122,6 +124,8 @@ const dict = {
     promo_title: "Statistics of your balances",
     promo_sub: "Accept, swap and pay out crypto in one dashboard. Join the FozPay community today!",
     logo: "Logo", upload_logo: "Upload logo", logo_hint: "PNG/JPG/SVG up to 512 KB", remove: "Remove",
+    partial_title: "Partial payment received", partial_received: "Received", partial_remaining: "Remaining to pay",
+    partial_wait: "Send the remaining amount to the same address — once the full amount arrives, the payment confirms automatically.",
   },
 };
 

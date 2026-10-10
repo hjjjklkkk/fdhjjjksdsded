@@ -244,6 +244,23 @@ export default function Checkout() {
               </div>
             </div>
 
+            {inv.amount_paid > 0 && !paid && (
+              <div data-testid="checkout-partial" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm">
+                <div className="font-bold text-amber-800">{t("partial_title")}</div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-slate-500">{t("partial_received")}</span>
+                  <span data-testid="partial-received" className="font-semibold text-slate-900">{fmtCrypto(inv.amount_paid)} {pay.currency}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="text-slate-500">{t("partial_remaining")}</span>
+                  <span data-testid="partial-remaining" className="font-bold text-amber-700">{fmtCrypto(Math.max(0, pay.amount_to_pay - inv.amount_paid))} {pay.currency}</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-amber-100">
+                  <div className="h-full rounded-full bg-amber-500 transition-all" style={{ width: `${Math.min(100, (inv.amount_paid / pay.amount_to_pay) * 100).toFixed(1)}%` }} />
+                </div>
+                <div className="mt-2 text-xs text-amber-700">{t("partial_wait")}</div>
+              </div>
+            )}
             <div data-testid="checkout-confirmations" className="text-center text-xs text-slate-500">
               {t("credited_after")} {pay.confirmations || (inv.conf_required ?? "—")} {t("conf_of_net")} {pay.network}
               {inv.conf_current != null && inv.conf_required != null ? ` • ${inv.conf_current}/${inv.conf_required}` : ""}
