@@ -39,4 +39,15 @@ Keys: ALCHEMY_KEY, TRONGRID_KEY, ONEINCH_KEY.
 ## Backlog / Next
 - Deep-localize admin-only Settings tabs (Platform/Networks) fully to EN.
 - Optional: move merchant logo to object storage if large images needed (currently base64, 512KB cap).
-- Show merchant logo on the checkout header.
+
+## 1inch Fusion+ cross-chain (added 2026-10-10)
+- REAL cross-chain swaps between EVM networks (ETH/BSC/Polygon/Arbitrum) via 1inch Fusion+ (intent-based, gasless).
+- Node signing worker at /app/signer/index.mjs (@1inch/cross-chain-sdk) on 127.0.0.1:8787, managed by supervisor (/etc/supervisor/conf.d/fusion-signer.conf). Reads ONEINCH_KEY + ALCHEMY_KEY from backend/.env. Node 20 requires --ignore-engines for install.
+  - POST /quote, POST /swap (approve+createOrder+submitOrder+background secret-reveal monitor), GET /status/:hash, GET /health.
+- Backend (server.py): POST /api/wallet/crosschain/quote, POST /api/wallet/crosschain/swap (locks source balance), GET /api/wallet/crosschain/status/{hash}; crosschain_worker() background poller credits dst on executed / refunds on expiry. db.crosschain_swaps collection.
+- Frontend: Wallet "Крос-чейн" tab (cc-from/cc-to + networks + amount, quote preview, status polling).
+- VERIFIED: quote end-to-end (25 USDT Polygon -> 24.87 USDC Arbitrum); same-network rejected. Full on-chain settlement requires the hot wallet to hold the source token + native gas on the source chain (cannot be dry-run without funds).
+- 1inch key confirmed entitled to Fusion+ on api.1inch.dev domain.
+- Owner admin switched to maksymnykytiuk@yahoo.com (ADMIN_EMAIL).
+- Partial payments: checkout shows received/remaining + progress bar on status "Partially"; deposit_worker keeps polling and auto-confirms on top-up.
+

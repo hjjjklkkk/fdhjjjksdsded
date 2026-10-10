@@ -104,6 +104,46 @@ export default function Wallet() {
   const fromAsset = assets.find((a) => a.iso === fFrom);
   const toAsset = assets.find((a) => a.iso === fTo);
 
+  // cross-chain (1inch Fusion+)
+  const [xFrom, setXFrom] = useState("USDT");
+  const [xFromNet, setXFromNet] = useState(null);
+  const [xTo, setXTo] = useState("USDC");
+  const [xToNet, setXToNet] = useState(null);
+  const [xAmt, setXAmt] = useState("");
+  const [xQuote, setXQuote] = useState(null);
+  const [xBusy, setXBusy] = useState(false);
+  const [xOrder, setXOrder] = useState(null);
+  const [xState, setXState] = useState("");
+  const xFromAsset = assets.find((a) => a.iso === xFrom);
+  const xToAsset = assets.find((a) => a.iso === xTo);
+  const ccGetQuote = async () => {
+    setXQuote(null);
+    try {
+      const { data } = await api.post("/wallet/crosschain/quote", { from_iso: xFrom, from_network: xFromNet, to_iso: xTo, to_network: xToNet, amount: Number(xAmt) });
+      setXQuote(data.data);
+    } catch (e) { toast.error(apiErr(e)); }
+  };
+  const ccSwap = async () => {
+    setXBusy(true); setXState("");
+    try {
+      const { data } = await api.post("/wallet/crosschain/swap", { from_iso: xFrom, from_network: xFromNet, to_iso: xTo, to_network: xToNet, amount: Number(xAmt) });
+      setXOrder(data.data.order_hash); setXState("pending");
+      toast.success("Крос-чейн обмін створено. Очікуйте надходження…");
+    } catch (e) { toast.error(apiErr(e)); }
+    finally { setXBusy(false); }
+  };
+  useEffect(() => {
+    if (!xOrder || ["executed", "refunded", "expired", "cancelled"].includes(xState)) return;
+    const iv = setInterval(async () => {
+      try {
+        const { data } = await api.get(`/wallet/crosschain/status/${xOrder}`);
+        setXState(data.data.state || "pending");
+        if (data.data.credited) { setXState(data.data.refunded ? "refunded" : "executed"); load(); clearInterval(iv); }
+      } catch (e) {}
+    }, 8000);
+    return () => clearInterval(iv);
+  }, [xOrder, xState]);
+
   const copy = (v) => { navigator.clipboard.writeText(v); toast.success(t("copied")); };
 
   const depFee = platform.deposit_fee || 0;
@@ -140,10 +180,11 @@ export default function Wallet() {
         {/* Actions */}
         <div className="rounded-3xl bg-white p-5 shadow-sm border border-slate-100 lg:col-span-3">
           <Tabs defaultValue="deposit">
-            <TabsList className="grid w-full grid-cols-3 rounded-xl">
+            <TabsList className="grid w-full grid-cols-4 rounded-xl">
               <TabsTrigger value="deposit" data-testid="tab-deposit"><ArrowDownLeft className="mr-1 h-4 w-4" />{t("deposit")}</TabsTrigger>
               <TabsTrigger value="withdraw" data-testid="tab-withdraw"><ArrowUpRight className="mr-1 h-4 w-4" />{t("withdraw")}</TabsTrigger>
               <TabsTrigger value="swap" data-testid="tab-swap"><RefreshCw className="mr-1 h-4 w-4" />{t("swap")}</TabsTrigger>
+              <TabsTrigger value="xchain" data-testid="tab-xchain"><RefreshCw className="mr-1 h-4 w-4" />{t("xchain")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="deposit" className="space-y-4 pt-4">
@@ -238,6 +279,44 @@ export default function Wallet() {
               <div><Label>{t("amount")} <span className="text-slate-400">({t("available")}: {fmtCrypto(fromAsset?.balance_available)} {fFrom})</span></Label>
                 <Input data-testid="ex-amount" type="number" value={fAmt} onChange={(e) => setFAmt(e.target.value)} className="rounded-xl mt-1" placeholder="0.00" /></div>
               <Button data-testid="exchange-btn" disabled={!fAmt || fFrom === fTo} onClick={doExchange} className="w-full rounded-full bg-blue-600 hover:bg-blue-700">{t("exchange")}</Button>
+            </TabsContent>
+
+            <TabsContent value="xchain" className="space-y-4 pt-4">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs text-emerald-800">{t("cc_desc")}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>{t("from")}</Label>
+                  <Select value={xFrom} onValueChange={(v) => { setXFrom(v); setXFromNet(null); setXQuote(null); }}>
+                    <SelectTrigger data-testid="cc-from" className="rounded-xl mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-white border border-slate-200">{assets.map((a) => <SelectItem key={a.iso} value={a.iso}>{a.iso}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>{t("to")}</Label>
+                  <Select value={xTo} onValueChange={(v) => { setXTo(v); setXToNet(null); setXQuote(null); }}>
+                    <SelectTrigger data-testid="cc-to" className="rounded-xl mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-white border border-slate-200">{assets.map((a) => <SelectItem key={a.iso} value={a.iso}>{a.iso}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>{t("network")} ({xFrom})</Label><div className="mt-1"><NetSelect testid="cc-from-network" networks={xFromAsset?.networks || []} value={xFromNet} onChange={(v) => { setXFromNet(v); setXQuote(null); }} enabledMap={netMap} /></div></div>
+                <div><Label>{t("network")} ({xTo})</Label><div className="mt-1"><NetSelect testid="cc-to-network" networks={xToAsset?.networks || []} value={xToNet} onChange={(v) => { setXToNet(v); setXQuote(null); }} enabledMap={netMap} /></div></div>
+              </div>
+              <div><Label>{t("amount")} <span className="text-slate-400">({t("available")}: {fmtCrypto(xFromAsset?.balance_available)} {xFrom})</span></Label>
+                <Input data-testid="cc-amount" type="number" value={xAmt} onChange={(e) => { setXAmt(e.target.value); setXQuote(null); }} className="rounded-xl mt-1" placeholder="0.00" /></div>
+              {xQuote && <div data-testid="cc-quote" className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm"><span className="text-slate-500">{t("cc_receive")}</span><span className="font-bold text-slate-900">{fmtCrypto(xQuote.dst_amount)} {xTo}</span></div>}
+              <div className="grid grid-cols-2 gap-2">
+                <Button data-testid="cc-quote-btn" variant="outline" disabled={!xAmt || xFromNet == null || xToNet == null} onClick={ccGetQuote} className="rounded-full">{t("cc_get")}</Button>
+                <Button data-testid="cc-swap-btn" disabled={xBusy || !xAmt || xFromNet == null || xToNet == null} onClick={ccSwap} className="rounded-full bg-[#0D5C46] hover:bg-[#083C2E]">{xBusy ? "…" : t("cc_start")}</Button>
+              </div>
+              {xOrder && <div data-testid="cc-status" className="rounded-xl border border-slate-200 p-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">{t("cc_state")}</span>
+                  <span data-testid="cc-state-value" className={`font-bold ${xState === "executed" ? "text-emerald-600" : (xState === "refunded" || xState === "expired") ? "text-rose-500" : "text-amber-600"}`}>
+                    {xState === "executed" ? "✓ виконано" : xState === "refunded" ? "повернено" : xState === "expired" ? "час вийшов" : "обробка…"}
+                  </span>
+                </div>
+                <code className="mt-1 block truncate text-slate-400">{xOrder}</code>
+              </div>}
             </TabsContent>
           </Tabs>
         </div>

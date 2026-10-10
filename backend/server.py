@@ -847,6 +847,167 @@ async def exchange(request: Request, payload: ExchangeIn):
             "txid": result.get("tx"), "tx": tx}}
 
 
+# ---------- cross-chain exchange (1inch Fusion+) ----------
+_CC_SIGNER = "http://127.0.0.1:8787"
+_CC_NATIVE = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+CC_CHAINS = {"ethereum": 1, "bsc": 56, "polygon": 137, "arbitrum": 42161}
+
+
+def _cc_resolve(iso, nid):
+    chain = NETWORKS.get(nid, {}).get("chain")
+    if chain not in CC_CHAINS:
+        return None
+    native = rec_mod.EVM[chain][2]
+    if iso == native:
+        return {"chain": chain, "chainid": CC_CHAINS[chain], "token": _CC_NATIVE, "decimals": 18}
+    tok = rec_mod.TOKENS.get(chain, {}).get(iso)
+    if not tok:
+        return None
+    from web3 import Web3 as _W3
+    return {"chain": chain, "chainid": CC_CHAINS[chain], "token": _W3.to_checksum_address(tok[0]), "decimals": tok[1]}
+
+
+def _cc_hotwallet():
+    from eth_account import Account as _Acct
+    acct = _Acct.from_key(derive_evm_privkey(_seed["bytes"], 0))
+    pk = acct.key.hex()
+    return acct.address, (pk if pk.startswith("0x") else "0x" + pk)
+
+
+class CCIn(BaseModel):
+    from_iso: str
+    from_network: int
+    to_iso: str
+    to_network: int
+    amount: float
+
+
+@cab.post("/wallet/crosschain/quote")
+async def cc_quote(request: Request, payload: CCIn):
+    await get_active_user(request)
+    import requests
+    fi, ti = payload.from_iso.upper(), payload.to_iso.upper()
+    src, dst = _cc_resolve(fi, payload.from_network), _cc_resolve(ti, payload.to_network)
+    if not src or not dst:
+        raise HTTPException(400, "Валюта/мережа не підтримується для крос-чейн обміну (лише ETH/BSC/Polygon/Arbitrum)")
+    if src["chainid"] == dst["chainid"]:
+        raise HTTPException(400, "Для крос-чейн потрібні РІЗНІ мережі. Для однієї мережі використайте звичайний обмін")
+    await ensure_seed()
+    hot_addr, pk_hex = _cc_hotwallet()
+    base = int(round(payload.amount * (10 ** src["decimals"])))
+    body = {"srcChainId": src["chainid"], "dstChainId": dst["chainid"], "srcToken": src["token"],
+            "dstToken": dst["token"], "amount": base, "walletAddress": hot_addr, "privateKey": pk_hex}
+    try:
+        r = await asyncio.to_thread(lambda: requests.post(f"{_CC_SIGNER}/quote", json=body, timeout=45))
+    except Exception as e:
+        raise HTTPException(503, f"Fusion+ сервіс недоступний: {e}")
+    if r.status_code >= 400:
+        raise HTTPException(400, f"Fusion+ quote: {r.text[:200]}")
+    data = r.json()
+    dst_h = int(data["dstAmount"]) / (10 ** dst["decimals"])
+    return {"status": True, "data": {"dst_amount": round(dst_h, 8),
+            "rate": round(dst_h / payload.amount, 8) if payload.amount else 0, "from": fi, "to": ti}}
+
+
+@cab.post("/wallet/crosschain/swap")
+async def cc_swap(request: Request, payload: CCIn):
+    user = await get_active_user(request)
+    uid = user["user_id"]
+    import requests
+    fi, ti = payload.from_iso.upper(), payload.to_iso.upper()
+    src, dst = _cc_resolve(fi, payload.from_network), _cc_resolve(ti, payload.to_network)
+    if not src or not dst:
+        raise HTTPException(400, "Валюта/мережа не підтримується для крос-чейн обміну")
+    if src["chainid"] == dst["chainid"]:
+        raise HTTPException(400, "Для крос-чейн потрібні РІЗНІ мережі")
+    bal = await get_balance(uid, fi)
+    if payload.amount <= 0 or payload.amount > bal["balance_available"]:
+        raise HTTPException(400, "Недостатньо коштів на балансі")
+    await ensure_seed()
+    hot_addr, pk_hex = _cc_hotwallet()
+    base = int(round(payload.amount * (10 ** src["decimals"])))
+    await credit_balance(uid, fi, -payload.amount)  # lock funds; refund if submission fails
+    body = {"srcChainId": src["chainid"], "dstChainId": dst["chainid"], "srcToken": src["token"],
+            "dstToken": dst["token"], "amount": base, "walletAddress": hot_addr, "privateKey": pk_hex}
+    try:
+        r = await asyncio.to_thread(lambda: requests.post(f"{_CC_SIGNER}/swap", json=body, timeout=150))
+    except Exception as e:
+        await credit_balance(uid, fi, payload.amount)
+        raise HTTPException(503, f"Fusion+ сервіс недоступний: {e}")
+    if r.status_code >= 400:
+        await credit_balance(uid, fi, payload.amount)
+        raise HTTPException(400, f"Fusion+ swap: {r.text[:200]}")
+    data = r.json()
+    oh = data["orderHash"]
+    dst_h = int(data["dstAmount"]) / (10 ** dst["decimals"])
+    doc = {"order_hash": oh, "user_id": uid, "from_iso": fi, "to_iso": ti,
+           "from_network": payload.from_network, "to_network": payload.to_network,
+           "from_chain": src["chain"], "to_chain": dst["chain"],
+           "amount": payload.amount, "expected_dst": round(dst_h, 8), "dst_decimals": dst["decimals"],
+           "status": "pending", "credited": False, "created_ts": now_ts()}
+    await db.crosschain_swaps.insert_one(dict(doc))
+    await add_transaction(uid, "crosschain", fi, payload.from_network, payload.amount, status="Processing",
+                          txid=oh, description=f"Cross-chain {fi}/{src['chain']} → {ti}/{dst['chain']} (Fusion+)")
+    return {"status": True, "data": {"order_hash": oh, "expected_dst": round(dst_h, 8)}}
+
+
+async def _cc_credit_if_done(doc):
+    if doc.get("credited"):
+        return doc
+    import requests
+    try:
+        r = await asyncio.to_thread(lambda: requests.get(f"{_CC_SIGNER}/status/{doc['order_hash']}", timeout=20))
+        s = r.json()
+    except Exception:
+        return doc
+    st = s.get("status")
+    if st and st != doc.get("status"):
+        await db.crosschain_swaps.update_one({"order_hash": doc["order_hash"]}, {"$set": {"status": st}})
+        doc["status"] = st
+    if s.get("done") and st == "executed":
+        plat = await get_platform_settings()
+        pct = swap_fee_percent_for(plat, doc["from_iso"])
+        gross = float(doc["expected_dst"])
+        fee = round(gross * pct / 100.0, 8)
+        net = round(gross - fee, 8)
+        await credit_balance(doc["user_id"], doc["to_iso"], net)
+        if fee > 0:
+            await add_to_pool(doc["to_iso"], fee)
+        await db.crosschain_swaps.update_one({"order_hash": doc["order_hash"]}, {"$set": {"credited": True, "received": net}})
+        await add_transaction(doc["user_id"], "crosschain", doc["to_iso"], doc["to_network"], net, status="Done",
+                              txid=doc["order_hash"], description=f"Отримано {doc['to_iso']} з крос-чейн обміну (Fusion+)")
+        doc["credited"], doc["received"] = True, net
+    elif s.get("done") and st in ("expired", "refunded", "cancelled"):
+        await credit_balance(doc["user_id"], doc["from_iso"], float(doc["amount"]))
+        await db.crosschain_swaps.update_one({"order_hash": doc["order_hash"]}, {"$set": {"credited": True, "refunded": True}})
+        doc["credited"], doc["refunded"] = True, True
+    return doc
+
+
+@cab.get("/wallet/crosschain/status/{order_hash}")
+async def cc_status(request: Request, order_hash: str):
+    user = await get_active_user(request)
+    doc = await db.crosschain_swaps.find_one({"order_hash": order_hash, "user_id": user["user_id"]}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Order not found")
+    doc = await _cc_credit_if_done(doc)
+    return {"status": True, "data": {"order_hash": order_hash, "state": doc.get("status"),
+            "credited": doc.get("credited"), "received": doc.get("received"),
+            "expected_dst": doc.get("expected_dst"), "refunded": doc.get("refunded", False)}}
+
+
+async def crosschain_worker():
+    """Finish cross-chain swaps even if the user closed the UI: credit on executed, refund on expiry."""
+    await asyncio.sleep(12)
+    while True:
+        try:
+            async for doc in db.crosschain_swaps.find({"credited": False}, {"_id": 0}):
+                await _cc_credit_if_done(doc)
+        except Exception as e:
+            logger.info(f"crosschain_worker error: {e}")
+        await asyncio.sleep(15)
+
+
 # ---------- invoices (cabinet) ----------
 class InvoiceIn(BaseModel):
     order_id: str = ""
@@ -2457,6 +2618,7 @@ async def startup():
         logger.info(f"cred write failed: {e}")
     asyncio.create_task(expire_worker())
     asyncio.create_task(deposit_worker())
+    asyncio.create_task(crosschain_worker())
     asyncio.create_task(direct_deposit_worker())
     asyncio.create_task(withdrawal_worker())
     asyncio.create_task(payout_retry_worker())

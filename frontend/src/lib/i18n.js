@@ -63,6 +63,8 @@ const dict = {
     logo: "Логотип", upload_logo: "Завантажити логотип", logo_hint: "PNG/JPG/SVG до 512 КБ", remove: "Прибрати",
     partial_title: "Отримано часткову оплату", partial_received: "Отримано", partial_remaining: "Залишок до сплати",
     partial_wait: "Доплатіть залишок на ту саму адресу — щойно сума надійде повністю, платіж підтвердиться автоматично.",
+    xchain: "Крос-чейн", cc_desc: "Реальний обмін МІЖ різними мережами через 1inch Fusion+ (газлес, без мостів вручну).",
+    cc_get: "Розрахувати курс", cc_receive: "Ви отримаєте", cc_start: "Обміняти між мережами", cc_state: "Статус обміну",
   },
   en: {
     login: "Login", register: "Sign up", email: "Email", password: "Password", name: "Name",
@@ -126,6 +128,8 @@ const dict = {
     logo: "Logo", upload_logo: "Upload logo", logo_hint: "PNG/JPG/SVG up to 512 KB", remove: "Remove",
     partial_title: "Partial payment received", partial_received: "Received", partial_remaining: "Remaining to pay",
     partial_wait: "Send the remaining amount to the same address — once the full amount arrives, the payment confirms automatically.",
+    xchain: "Cross-chain", cc_desc: "Real swaps BETWEEN different networks via 1inch Fusion+ (gasless, no manual bridges).",
+    cc_get: "Get quote", cc_receive: "You receive", cc_start: "Swap across networks", cc_state: "Swap status",
   },
 };
 
